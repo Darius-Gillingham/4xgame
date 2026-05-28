@@ -1,5 +1,5 @@
 // File: building.cpp
-// Commit: Allow regular buildings (estates and smallholders) to exist as roots, support attachment as relationship only, and define host/slot behavior for all building types
+// Commit: Define tribal sub-building names and parent rules
 
 #include "building.h"
 
@@ -17,6 +17,17 @@ const char* buildingTypeName(BuildingType type)
         case BuildingType::tribal_estate: return "Tribal Estate";
         case BuildingType::smallholder: return "Smallholder";
         case BuildingType::tribal_smallholder: return "Tribal Smallholder";
+        default: return "Unknown";
+    }
+}
+
+const char* subBuildingTypeName(SubBuildingType type)
+{
+    switch (type)
+    {
+        case SubBuildingType::hunter_tent: return "Hunter Tent";
+        case SubBuildingType::gatherer_tent: return "Gatherer Tent";
+        case SubBuildingType::chief_tent: return "Chief Tent";
         default: return "Unknown";
     }
 }
@@ -115,6 +126,31 @@ bool canHostSubBuildings(BuildingType)
     return true;
 }
 
+bool canBuildTribalSubBuilding(BuildingType parentType, SubBuildingType subBuildingType)
+{
+    if (
+        parentType != BuildingType::tribe &&
+        parentType != BuildingType::tribal_estate &&
+        parentType != BuildingType::tribal_smallholder
+    )
+    {
+        return false;
+    }
+
+    switch (subBuildingType)
+    {
+        case SubBuildingType::hunter_tent:
+        case SubBuildingType::gatherer_tent:
+            return true;
+
+        case SubBuildingType::chief_tent:
+            return parentType == BuildingType::tribe || parentType == BuildingType::tribal_estate;
+
+        default:
+            return false;
+    }
+}
+
 bool canEstateAttachToParent(BuildingType estateType, BuildingType parentType)
 {
     if (!isEstateBuildingType(estateType) || !canHostAttachedBuildings(parentType))
@@ -183,7 +219,33 @@ std::vector<BuildingType> allowedSmallholderTypesForParent(BuildingType parentTy
     return {BuildingType::smallholder};
 }
 
+std::vector<SubBuildingType> allowedSubBuildingTypesForParent(BuildingType parentType)
+{
+    std::vector<SubBuildingType> allowedTypes;
+
+    const std::vector<SubBuildingType> tribalTypes = {
+        SubBuildingType::hunter_tent,
+        SubBuildingType::gatherer_tent,
+        SubBuildingType::chief_tent
+    };
+
+    for (SubBuildingType type : tribalTypes)
+    {
+        if (canBuildTribalSubBuilding(parentType, type))
+        {
+            allowedTypes.push_back(type);
+        }
+    }
+
+    return allowedTypes;
+}
+
 std::string buildingDisplayName(const Building& building)
 {
     return std::string(buildingTypeName(building.type)) + " #" + std::to_string(building.id);
+}
+
+std::string subBuildingDisplayName(const SubBuilding& subBuilding)
+{
+    return std::string(subBuildingTypeName(subBuilding.type)) + " #" + std::to_string(subBuilding.id);
 }

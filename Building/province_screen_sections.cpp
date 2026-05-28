@@ -1,5 +1,5 @@
-// File: province_screen_sections.cpp
-// Commit: Update normal buildings panel text to match the unified standalone build menu and keep attachment restrictions on attachment widgets only
+// File: building/province_screen_sections.cpp
+// Commit: Replace removed peasant counters with current population counters
 
 #include "province_screen_sections.h"
 #include "province_screen_capital_render.h"
@@ -41,57 +41,13 @@ void drawPopCountSection(
     drawWrappedText(
         renderer,
         bodyFont,
-        "Peasants: " + std::to_string(province.totalPeasants()) +
-            "\nFree Peasants: " + std::to_string(province.freePeasants()),
+        "Population: " + std::to_string(province.totalPopulation()) +
+            "\nUnassigned Population: " + std::to_string(province.unassignedPopulation()),
         popSection.rect.x + kSectionPad,
         popSection.rect.y + 54,
         popSection.rect.w - (kSectionPad * 2),
         UiPalette::text
     );
-}
-
-void drawNormalBuildingsSection(
-    SDL_Renderer* renderer,
-    TTF_Font* bodyFont,
-    const SectionLayout& normalSection,
-    const BuildDrawerState& drawer,
-    std::vector<ClickTarget>& clickTargets)
-{
-    const std::string message =
-        "This menu now opens the full standalone building list. "
-        "Only attachment widgets should restrict the menu to attachment-valid buildings. "
-        "City- and church-only attached building types are not added yet.";
-
-    const int textHeight = measureWrappedHeight(
-        bodyFont,
-        message,
-        normalSection.rect.w - (kSectionPad * 2),
-        22
-    );
-
-    drawWrappedText(
-        renderer,
-        bodyFont,
-        message,
-        normalSection.rect.x + kSectionPad,
-        normalSection.rect.y + 54,
-        normalSection.rect.w - (kSectionPad * 2),
-        UiPalette::mutedText
-    );
-
-    SDL_Rect addRect{
-        normalSection.rect.x + kSectionPad,
-        normalSection.rect.y + 54 + textHeight + 18,
-        normalSection.rect.w - (kSectionPad * 2),
-        kSlotHeight
-    };
-    drawAddRowButton(renderer, bodyFont, addRect, drawer.contextType == BuildContextType::normal_building_section);
-
-    ClickTarget target;
-    target.rect = addRect;
-    target.contextType = BuildContextType::normal_building_section;
-    target.targetBuildingId = -1;
-    clickTargets.push_back(target);
 }
 
 void drawResourcesSection(

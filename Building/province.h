@@ -1,11 +1,32 @@
 // File: province.h
-// Commit: Add province state, building construction rules, and attachment query helpers
+// Commit: Replace vestigial peasant state with province pop structures and population query helpers
 
 #pragma once
 
 #include "building.h"
 #include <string>
 #include <vector>
+
+enum class PopType
+{
+    farmer,
+    laborer,
+    artisan,
+    merchant,
+    clergy,
+    noble,
+    tribesman
+};
+
+const char* popTypeName(PopType type);
+
+struct Pop
+{
+    int id = -1;
+    PopType type = PopType::farmer;
+    int population = 0;
+    int assignedBuildingId = -1;
+};
 
 struct AttachmentCounts
 {
@@ -18,8 +39,10 @@ class Province
 public:
     Province();
 
-    int totalPeasants() const;
-    int freePeasants() const;
+    int totalPopulation() const;
+    int unassignedPopulation() const;
+
+    const std::vector<Pop>& pops() const;
 
     bool canBuildRoot(BuildingType type, std::string& reason) const;
     bool buildRoot(BuildingType type, std::string& reason);
@@ -45,7 +68,8 @@ public:
 
 private:
     int nextBuildingId_;
-    int totalPeasants_;
+    int nextPopId_;
+    std::vector<Pop> pops_;
     std::vector<Building> buildings_;
 
     bool hasCapitalType(BuildingType type) const;
