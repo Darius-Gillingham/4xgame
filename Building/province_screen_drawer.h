@@ -1,5 +1,5 @@
 // File: province_screen_drawer.h
-// Commit: Keep drawer header to declarations only and remove duplicate function definitions
+// Commit: Add sub-building drawer open helper declaration
 
 #pragma once
 
@@ -13,6 +13,7 @@ std::vector<BuildOption> buildOptionsForContext(const Province& province, const 
 void openRootDrawer(BuildDrawerState& drawer);
 void openDirectAttachmentDrawer(BuildDrawerState& drawer, const Province& province, int targetBuildingId);
 void openEstateAttachmentDrawer(BuildDrawerState& drawer, const Province& province, int targetBuildingId);
+void openSubBuildingDrawer(BuildDrawerState& drawer, const Province& province, int targetBuildingId);
 void openNormalBuildingsDrawer(BuildDrawerState& drawer);
 
 bool applyDrawerBuildSelection(

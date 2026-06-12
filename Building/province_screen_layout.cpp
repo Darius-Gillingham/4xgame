@@ -1,5 +1,5 @@
 // File: province_screen_layout.cpp
-// Commit: Include outer root block padding in building section height so colored root wrappers measure correctly
+// Commit: Measure building tree height with horizontal sub-building slot strips
 
 #include "province_screen_layout.h"
 #include "building.h"
@@ -21,6 +21,7 @@ namespace
     constexpr int kTreeInnerGap = 6;
     constexpr int kDividerHeight = 10;
     constexpr int kRootBlockPad = 10;
+    constexpr int kSubSlotSize = 28;
 }
 
 int lineHeightForFont(TTF_Font* font, int fallback)
@@ -128,7 +129,7 @@ static int buildingTreeContentHeight(const Province& province, int buildingId, T
 
     if (canHostSubBuildings(building->type))
     {
-        height += kSlotHeight + kTreeInnerGap;
+        height += kSubSlotSize + kTreeInnerGap;
     }
 
     height += kDividerHeight + kTreeInnerGap;

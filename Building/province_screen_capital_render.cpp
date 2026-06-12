@@ -1,5 +1,5 @@
 // File: province_screen_capital_render.cpp
-// Commit: Use centralized UiPalette building colors and remove hardcoded color logic from render layer
+// Commit: Render sub-building slots as horizontal clickable square strips
 
 #include "province_screen_capital_render.h"
 #include "province_screen_layout.h"
@@ -16,6 +16,8 @@ namespace
     constexpr int kInnerPad = 8;
     constexpr int kDividerHeight = 10;
     constexpr int kRootBlockPad = 10;
+    constexpr int kSubSlotSize = 28;
+    constexpr int kSubSlotGap = 4;
 
     bool hasReservedAttachedOnlyRow(BuildingType type)
     {
@@ -85,7 +87,7 @@ namespace
 
         if (canHostSubBuildings(building->type))
         {
-            height += kSlotHeight + kInnerGap;
+            height += kSubSlotSize + kInnerGap;
         }
 
         height += kDividerHeight + kInnerGap;
@@ -193,10 +195,38 @@ int renderBuildingTree(
 
     if (canHostSubBuildings(building->type))
     {
-        SDL_Rect subRow{x, y, w, kSlotHeight};
-        drawPanelFilled(renderer, subRow, fill, border);
-        drawText(renderer, bodyFont, "Sub-building slots", subRow.x + 10, subRow.y + 5, UiPalette::mutedText);
-        y += kSlotHeight + kInnerGap;
+        const int slotCount = subBuildingSlotCapacity(building->type);
+
+        for (int slotIndex = 0; slotIndex < slotCount; ++slotIndex)
+        {
+            SDL_Rect slotRect{
+                x + (slotIndex * (kSubSlotSize + kSubSlotGap)),
+                y,
+                kSubSlotSize,
+                kSubSlotSize
+            };
+
+            const bool occupied = slotIndex < static_cast<int>(building->subBuildings.size());
+
+            if (occupied)
+            {
+                drawPanelFilled(renderer, slotRect, UiPalette::selectedFill, border);
+                drawText(renderer, bodyFont, "X", slotRect.x + 8, slotRect.y + 4, UiPalette::text);
+            }
+            else
+            {
+                drawPanelFilled(renderer, slotRect, UiPalette::slotFill, border);
+                drawText(renderer, bodyFont, "+", slotRect.x + 8, slotRect.y + 4, UiPalette::text);
+
+                clickTargets.push_back({
+                    slotRect,
+                    BuildContextType::sub_building_slot,
+                    buildingId
+                });
+            }
+        }
+
+        y += kSubSlotSize + kInnerGap;
     }
 
     setRenderColor(renderer, border);

@@ -1,5 +1,5 @@
-// File: province_state.cpp
-// Commit: Initialize province pops and expose population totals without peasant terminology
+// File: building/province_state.cpp
+// Commit: Initialize sub-building id counter in province state
 
 #include "province.h"
 
@@ -19,14 +19,20 @@ const char* popTypeName(PopType type)
 }
 
 Province::Province()
-    : nextBuildingId_(1), nextPopId_(1)
+    : nextBuildingId_(1), nextPopId_(1), nextSubBuildingId_(1)
 {
-    Pop farmerPop;
-    farmerPop.id = nextPopId_++;
-    farmerPop.type = PopType::farmer;
-    farmerPop.population = 200;
-    farmerPop.assignedBuildingId = -1;
-    pops_.push_back(farmerPop);
+    Building tribe;
+    tribe.id = nextBuildingId_++;
+    tribe.type = BuildingType::tribe;
+    tribe.parentId = -1;
+    buildings_.push_back(tribe);
+
+    Pop tribesmanPop;
+    tribesmanPop.id = nextPopId_++;
+    tribesmanPop.type = PopType::tribesman;
+    tribesmanPop.population = 200;
+    tribesmanPop.assignedBuildingId = tribe.id;
+    pops_.push_back(tribesmanPop);
 }
 
 int Province::totalPopulation() const

@@ -1,5 +1,5 @@
 // File: province_queries.cpp
-// Commit: Support root queries and child queries for standalone and attached typed regular buildings
+// Commit: Add sub-building slot capacity query helpers
 
 #include "province.h"
 
@@ -82,4 +82,15 @@ int Province::estateSlotCapacityForBuilding(int buildingId) const
     }
 
     return directAttachmentSlotCapacity(building->type);
+}
+
+int Province::subBuildingSlotCapacityForBuilding(int buildingId) const
+{
+    const Building* building = getBuildingById(buildingId);
+    if (!building)
+    {
+        return 0;
+    }
+
+    return subBuildingSlotCapacity(building->type);
 }

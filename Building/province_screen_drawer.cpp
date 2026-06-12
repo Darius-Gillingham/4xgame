@@ -1,5 +1,5 @@
 // File: province_screen_drawer.cpp
-// Commit: Make both root build entry points use the full standalone building list and keep attachment-only filtering on attachment widgets
+// Commit: Add sub-building drawer support and sub-building build execution
 
 #include "province_screen_drawer.h"
 
@@ -34,7 +34,12 @@ std::vector<BuildOption> buildOptionsForContext(const Province& province, const 
         }
 
         std::string smallholderReason;
-        const bool smallholderEnabled = province.canBuildSmallholderAttachment(drawer.targetBuildingId, smallholderReason);
+        const bool smallholderEnabled =
+            province.canBuildSmallholderAttachment(
+                drawer.targetBuildingId,
+                smallholderReason
+            );
+
         for (BuildingType type : allowedSmallholderTypesForParent(parent->type))
         {
             BuildOption option;
@@ -46,7 +51,12 @@ std::vector<BuildOption> buildOptionsForContext(const Province& province, const 
         }
 
         std::string estateReason;
-        const bool estateEnabled = province.canBuildEstateAttachment(drawer.targetBuildingId, estateReason);
+        const bool estateEnabled =
+            province.canBuildEstateAttachment(
+                drawer.targetBuildingId,
+                estateReason
+            );
+
         for (BuildingType type : allowedEstateTypesForParent(parent->type))
         {
             BuildOption option;
@@ -66,7 +76,12 @@ std::vector<BuildOption> buildOptionsForContext(const Province& province, const 
         }
 
         std::string reason;
-        const bool enabled = province.canBuildSmallholderAttachment(drawer.targetBuildingId, reason);
+        const bool enabled =
+            province.canBuildSmallholderAttachment(
+                drawer.targetBuildingId,
+                reason
+            );
+
         for (BuildingType type : allowedSmallholderTypesForParent(parent->type))
         {
             BuildOption option;
@@ -74,6 +89,34 @@ std::vector<BuildOption> buildOptionsForContext(const Province& province, const 
             option.description = reason;
             option.enabled = enabled;
             option.buildingType = type;
+            options.push_back(option);
+        }
+    }
+    else if (drawer.contextType == BuildContextType::sub_building_slot)
+    {
+        const Building* parent = province.getBuildingById(drawer.targetBuildingId);
+
+        if (!parent)
+        {
+            return options;
+        }
+
+        for (SubBuildingType type : allowedSubBuildingTypesForParent(parent->type))
+        {
+            std::string reason;
+            const bool enabled =
+                province.canBuildSubBuilding(
+                    drawer.targetBuildingId,
+                    type,
+                    reason
+                );
+
+            BuildOption option;
+            option.label = subBuildingTypeName(type);
+            option.description = reason;
+            option.enabled = enabled;
+            option.subBuildingType = type;
+
             options.push_back(option);
         }
     }
@@ -90,26 +133,55 @@ void openRootDrawer(BuildDrawerState& drawer)
     drawer.subtitle = "Choose any standalone building for the province.";
 }
 
-void openDirectAttachmentDrawer(BuildDrawerState& drawer, const Province& province, int targetBuildingId)
+void openDirectAttachmentDrawer(
+    BuildDrawerState& drawer,
+    const Province& province,
+    int targetBuildingId)
 {
-    const Building* building = province.getBuildingById(targetBuildingId);
+    const Building* building =
+        province.getBuildingById(targetBuildingId);
 
     drawer.contextType = BuildContextType::direct_attachment_slot;
     drawer.targetBuildingId = targetBuildingId;
     drawer.scrollOffset = 0;
     drawer.title = "Attach Building";
-    drawer.subtitle = std::string("Target: ") + (building ? buildingDisplayName(*building) : "Unknown");
+    drawer.subtitle =
+        std::string("Target: ") +
+        (building ? buildingDisplayName(*building) : "Unknown");
 }
 
-void openEstateAttachmentDrawer(BuildDrawerState& drawer, const Province& province, int targetBuildingId)
+void openEstateAttachmentDrawer(
+    BuildDrawerState& drawer,
+    const Province& province,
+    int targetBuildingId)
 {
-    const Building* building = province.getBuildingById(targetBuildingId);
+    const Building* building =
+        province.getBuildingById(targetBuildingId);
 
     drawer.contextType = BuildContextType::estate_attachment_slot;
     drawer.targetBuildingId = targetBuildingId;
     drawer.scrollOffset = 0;
     drawer.title = "Attach Smallholder";
-    drawer.subtitle = std::string("Target: ") + (building ? buildingDisplayName(*building) : "Unknown");
+    drawer.subtitle =
+        std::string("Target: ") +
+        (building ? buildingDisplayName(*building) : "Unknown");
+}
+
+void openSubBuildingDrawer(
+    BuildDrawerState& drawer,
+    const Province& province,
+    int targetBuildingId)
+{
+    const Building* building =
+        province.getBuildingById(targetBuildingId);
+
+    drawer.contextType = BuildContextType::sub_building_slot;
+    drawer.targetBuildingId = targetBuildingId;
+    drawer.scrollOffset = 0;
+    drawer.title = "Build Sub-Building";
+    drawer.subtitle =
+        std::string("Target: ") +
+        (building ? buildingDisplayName(*building) : "Unknown");
 }
 
 void openNormalBuildingsDrawer(BuildDrawerState& drawer)
@@ -125,8 +197,7 @@ bool applyDrawerBuildSelection(
     Province& province,
     const BuildDrawerState& drawer,
     const BuildOption& option,
-    std::string& resultText
-)
+    std::string& resultText)
 {
     if (!option.enabled)
     {
@@ -148,19 +219,40 @@ bool applyDrawerBuildSelection(
     {
         if (isSmallholderBuildingType(option.buildingType))
         {
-            built = province.buildSmallholderAttachment(drawer.targetBuildingId, reason);
+            built =
+                province.buildSmallholderAttachment(
+                    drawer.targetBuildingId,
+                    reason
+                );
         }
         else if (isEstateBuildingType(option.buildingType))
         {
-            built = province.buildEstateAttachment(drawer.targetBuildingId, reason);
+            built =
+                province.buildEstateAttachment(
+                    drawer.targetBuildingId,
+                    reason
+                );
         }
     }
     else if (drawer.contextType == BuildContextType::estate_attachment_slot)
     {
         if (isSmallholderBuildingType(option.buildingType))
         {
-            built = province.buildSmallholderAttachment(drawer.targetBuildingId, reason);
+            built =
+                province.buildSmallholderAttachment(
+                    drawer.targetBuildingId,
+                    reason
+                );
         }
+    }
+    else if (drawer.contextType == BuildContextType::sub_building_slot)
+    {
+        built =
+            province.buildSubBuilding(
+                drawer.targetBuildingId,
+                option.subBuildingType,
+                reason
+            );
     }
 
     resultText = reason;

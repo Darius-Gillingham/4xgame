@@ -1,5 +1,5 @@
 // File: building.h
-// Commit: Add tribal sub-building types and storage to building records
+// Commit: Add expanded tribal sub-building type list to building records
 
 #pragma once
 
@@ -22,9 +22,21 @@ enum class BuildingType
 
 enum class SubBuildingType
 {
-    hunter_tent,
-    gatherer_tent,
-    chief_tent
+    game_hunters,
+    fowl_hunters,
+    fishermen,
+    beachcombers,
+    gatherers,
+    loggers,
+    flint_knappers,
+    basalt_polishers,
+    butcher,
+    feasting,
+    charcoal_maker,
+    potter,
+    tanner,
+    thatcher,
+    ropemaker
 };
 
 const char* buildingTypeName(BuildingType type);
@@ -62,7 +74,7 @@ std::vector<SubBuildingType> allowedSubBuildingTypesForParent(BuildingType paren
 struct SubBuilding
 {
     int id = -1;
-    SubBuildingType type = SubBuildingType::hunter_tent;
+    SubBuildingType type = SubBuildingType::game_hunters;
 };
 
 struct Building

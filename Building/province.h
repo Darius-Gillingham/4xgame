@@ -1,5 +1,5 @@
 // File: province.h
-// Commit: Replace vestigial peasant state with province pop structures and population query helpers
+// Commit: Add province sub-building construction query and build interfaces
 
 #pragma once
 
@@ -53,6 +53,9 @@ public:
     bool canBuildEstateAttachment(int parentId, std::string& reason) const;
     bool buildEstateAttachment(int parentId, std::string& reason);
 
+    bool canBuildSubBuilding(int parentId, SubBuildingType type, std::string& reason) const;
+    bool buildSubBuilding(int parentId, SubBuildingType type, std::string& reason);
+
     const std::vector<Building>& buildings() const;
     const Building* getBuildingById(int id) const;
     Building* getBuildingById(int id);
@@ -63,12 +66,14 @@ public:
 
     int directSmallholderSlotCapacityForBuilding(int buildingId) const;
     int estateSlotCapacityForBuilding(int buildingId) const;
+    int subBuildingSlotCapacityForBuilding(int buildingId) const;
 
     AttachmentCounts attachmentCountsForParent(int parentId) const;
 
 private:
     int nextBuildingId_;
     int nextPopId_;
+    int nextSubBuildingId_;
     std::vector<Pop> pops_;
     std::vector<Building> buildings_;
 

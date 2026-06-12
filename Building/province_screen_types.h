@@ -1,5 +1,5 @@
 // File: province_screen_types.h
-// Commit: Extract province screen internal UI state types for drawer, click targets, and section layout
+// Commit: Add sub-building slot drawer context to province screen state
 
 #pragma once
 
@@ -13,6 +13,7 @@ enum class BuildContextType
     root_capital,
     direct_attachment_slot,
     estate_attachment_slot,
+    sub_building_slot,
     normal_building_section
 };
 
@@ -31,6 +32,7 @@ struct BuildOption
     std::string description;
     bool enabled = false;
     BuildingType buildingType = BuildingType::castle;
+    SubBuildingType subBuildingType = SubBuildingType::game_hunters;
 };
 
 struct ClickTarget

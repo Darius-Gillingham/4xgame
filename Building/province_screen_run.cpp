@@ -1,5 +1,5 @@
 // File: province_screen_run.cpp
-// Commit: Keep the drawer on the root building list by default and remove the root add widget from the main buildings panel
+// Commit: Add sub-building drawer click handling and refresh support
 
 #include "province_screen.h"
 #include "province_screen_capital_render.h"
@@ -148,6 +148,10 @@ void runProvinceScreen(SDL_Window* window, SDL_Renderer* renderer, TTF_Font* sha
                     {
                         openEstateAttachmentDrawer(drawer, province, target.targetBuildingId);
                     }
+                    else if (target.contextType == BuildContextType::sub_building_slot)
+                    {
+                        openSubBuildingDrawer(drawer, province, target.targetBuildingId);
+                    }
 
                     handled = true;
                     break;
@@ -175,16 +179,21 @@ void runProvinceScreen(SDL_Window* window, SDL_Renderer* renderer, TTF_Font* sha
 
                                 if (
                                     drawer.contextType == BuildContextType::direct_attachment_slot ||
-                                    drawer.contextType == BuildContextType::estate_attachment_slot
+                                    drawer.contextType == BuildContextType::estate_attachment_slot ||
+                                    drawer.contextType == BuildContextType::sub_building_slot
                                 )
                                 {
                                     if (drawer.contextType == BuildContextType::direct_attachment_slot)
                                     {
                                         openDirectAttachmentDrawer(drawer, province, drawer.targetBuildingId);
                                     }
-                                    else
+                                    else if (drawer.contextType == BuildContextType::estate_attachment_slot)
                                     {
                                         openEstateAttachmentDrawer(drawer, province, drawer.targetBuildingId);
+                                    }
+                                    else
+                                    {
+                                        openSubBuildingDrawer(drawer, province, drawer.targetBuildingId);
                                     }
                                 }
                                 else

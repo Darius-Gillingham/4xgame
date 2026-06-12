@@ -1,5 +1,5 @@
-// File: building.cpp
-// Commit: Define tribal sub-building names and parent rules
+// File: building/building.cpp
+// Commit: Add expanded tribal sub-building names and tiered sub-building slot capacities
 
 #include "building.h"
 
@@ -25,9 +25,21 @@ const char* subBuildingTypeName(SubBuildingType type)
 {
     switch (type)
     {
-        case SubBuildingType::hunter_tent: return "Hunter Tent";
-        case SubBuildingType::gatherer_tent: return "Gatherer Tent";
-        case SubBuildingType::chief_tent: return "Chief Tent";
+        case SubBuildingType::game_hunters: return "Game Hunters";
+        case SubBuildingType::fowl_hunters: return "Fowl Hunters";
+        case SubBuildingType::fishermen: return "Fishermen";
+        case SubBuildingType::beachcombers: return "Beachcombers";
+        case SubBuildingType::gatherers: return "Gatherers";
+        case SubBuildingType::loggers: return "Loggers";
+        case SubBuildingType::flint_knappers: return "Flint Knappers";
+        case SubBuildingType::basalt_polishers: return "Basalt Polishers";
+        case SubBuildingType::butcher: return "Butcher";
+        case SubBuildingType::feasting: return "Feasting";
+        case SubBuildingType::charcoal_maker: return "Charcoal Maker";
+        case SubBuildingType::potter: return "Potter";
+        case SubBuildingType::tanner: return "Tanner";
+        case SubBuildingType::thatcher: return "Thatcher";
+        case SubBuildingType::ropemaker: return "Ropemaker";
         default: return "Unknown";
     }
 }
@@ -87,7 +99,7 @@ bool isTribalSmallholderType(BuildingType type)
 
 bool canBuildAsRoot(BuildingType type)
 {
-    return true;
+    return type == BuildingType::tribe;
 }
 
 int directAttachmentSlotCapacity(BuildingType type)
@@ -111,9 +123,24 @@ int directAttachmentSlotCapacity(BuildingType type)
     }
 }
 
-int subBuildingSlotCapacity(BuildingType)
+int subBuildingSlotCapacity(BuildingType type)
 {
-    return 9;
+    if (isCapitalBuildingType(type))
+    {
+        return 7;
+    }
+
+    if (isEstateBuildingType(type))
+    {
+        return 5;
+    }
+
+    if (isSmallholderBuildingType(type))
+    {
+        return 3;
+    }
+
+    return 0;
 }
 
 bool canHostAttachedBuildings(BuildingType type)
@@ -121,9 +148,9 @@ bool canHostAttachedBuildings(BuildingType type)
     return directAttachmentSlotCapacity(type) > 0;
 }
 
-bool canHostSubBuildings(BuildingType)
+bool canHostSubBuildings(BuildingType type)
 {
-    return true;
+    return subBuildingSlotCapacity(type) > 0;
 }
 
 bool canBuildTribalSubBuilding(BuildingType parentType, SubBuildingType subBuildingType)
@@ -139,12 +166,22 @@ bool canBuildTribalSubBuilding(BuildingType parentType, SubBuildingType subBuild
 
     switch (subBuildingType)
     {
-        case SubBuildingType::hunter_tent:
-        case SubBuildingType::gatherer_tent:
+        case SubBuildingType::game_hunters:
+        case SubBuildingType::fowl_hunters:
+        case SubBuildingType::fishermen:
+        case SubBuildingType::beachcombers:
+        case SubBuildingType::gatherers:
+        case SubBuildingType::loggers:
+        case SubBuildingType::flint_knappers:
+        case SubBuildingType::basalt_polishers:
+        case SubBuildingType::butcher:
+        case SubBuildingType::feasting:
+        case SubBuildingType::charcoal_maker:
+        case SubBuildingType::potter:
+        case SubBuildingType::tanner:
+        case SubBuildingType::thatcher:
+        case SubBuildingType::ropemaker:
             return true;
-
-        case SubBuildingType::chief_tent:
-            return parentType == BuildingType::tribe || parentType == BuildingType::tribal_estate;
 
         default:
             return false;
@@ -158,9 +195,6 @@ bool canEstateAttachToParent(BuildingType estateType, BuildingType parentType)
         return false;
     }
 
-    if (parentType == BuildingType::castle) return estateType == BuildingType::noble_estate;
-    if (parentType == BuildingType::city) return estateType == BuildingType::merchant_estate;
-    if (parentType == BuildingType::church) return estateType == BuildingType::religious_estate;
     if (parentType == BuildingType::tribe) return estateType == BuildingType::tribal_estate;
 
     return false;
@@ -178,22 +212,13 @@ bool canSmallholderAttachToParent(BuildingType smallholderType, BuildingType par
         return smallholderType == BuildingType::tribal_smallholder;
     }
 
-    return smallholderType == BuildingType::smallholder;
+    return false;
 }
 
 std::vector<BuildingType> allowedRootBuildingTypes()
 {
     return {
-        BuildingType::castle,
-        BuildingType::city,
-        BuildingType::church,
-        BuildingType::tribe,
-        BuildingType::noble_estate,
-        BuildingType::merchant_estate,
-        BuildingType::religious_estate,
-        BuildingType::tribal_estate,
-        BuildingType::smallholder,
-        BuildingType::tribal_smallholder
+        BuildingType::tribe
     };
 }
 
@@ -201,9 +226,6 @@ std::vector<BuildingType> allowedEstateTypesForParent(BuildingType parentType)
 {
     switch (parentType)
     {
-        case BuildingType::castle: return {BuildingType::noble_estate};
-        case BuildingType::city: return {BuildingType::merchant_estate};
-        case BuildingType::church: return {BuildingType::religious_estate};
         case BuildingType::tribe: return {BuildingType::tribal_estate};
         default: return {};
     }
@@ -216,7 +238,7 @@ std::vector<BuildingType> allowedSmallholderTypesForParent(BuildingType parentTy
         return {BuildingType::tribal_smallholder};
     }
 
-    return {BuildingType::smallholder};
+    return {};
 }
 
 std::vector<SubBuildingType> allowedSubBuildingTypesForParent(BuildingType parentType)
@@ -224,9 +246,21 @@ std::vector<SubBuildingType> allowedSubBuildingTypesForParent(BuildingType paren
     std::vector<SubBuildingType> allowedTypes;
 
     const std::vector<SubBuildingType> tribalTypes = {
-        SubBuildingType::hunter_tent,
-        SubBuildingType::gatherer_tent,
-        SubBuildingType::chief_tent
+        SubBuildingType::game_hunters,
+        SubBuildingType::fowl_hunters,
+        SubBuildingType::fishermen,
+        SubBuildingType::beachcombers,
+        SubBuildingType::gatherers,
+        SubBuildingType::loggers,
+        SubBuildingType::flint_knappers,
+        SubBuildingType::basalt_polishers,
+        SubBuildingType::butcher,
+        SubBuildingType::feasting,
+        SubBuildingType::charcoal_maker,
+        SubBuildingType::potter,
+        SubBuildingType::tanner,
+        SubBuildingType::thatcher,
+        SubBuildingType::ropemaker
     };
 
     for (SubBuildingType type : tribalTypes)
