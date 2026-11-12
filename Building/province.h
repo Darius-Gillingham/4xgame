@@ -1,9 +1,10 @@
-// File: province.h
-// Commit: Add province sub-building construction query and build interfaces
+// File: building/province.h
+// Commit: Add province interfaces for raising and lowering generic building levies
 
 #pragma once
 
 #include "building.h"
+
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@ struct Pop
     int id = -1;
     PopType type = PopType::farmer;
     int population = 0;
+    int assignedHoldingId = -1;
     int assignedBuildingId = -1;
 };
 
@@ -34,6 +36,30 @@ struct AttachmentCounts
     int estates = 0;
 };
 
+struct ProvinceResourceSummary
+{
+    std::vector<ResourceAmount> inputs;
+    std::vector<ResourceAmount> outputs;
+    std::vector<ResourceAmount> net;
+};
+
+struct ProvinceFoodSummary
+{
+    FoodProfile inputs;
+    FoodProfile outputs;
+    FoodProfile net;
+};
+
+struct ProvinceSaveData
+{
+    int nextHoldingId = 1;
+    int nextPopId = 1;
+    int nextBuildingId = 1;
+    int prestige = 10000;
+    std::vector<Pop> pops;
+    std::vector<Holding> holdings;
+};
+
 class Province
 {
 public:
@@ -41,42 +67,135 @@ public:
 
     int totalPopulation() const;
     int unassignedPopulation() const;
+    int employedPopulation() const;
+    int availableWorkerPopulation() const;
+
+    int prestige() const
+    {
+        return prestige_;
+    }
+
+    void addPrestige(int amount)
+    {
+        prestige_ += amount;
+    }
+
+    bool spendPrestige(int amount)
+    {
+        if (amount < 0 || prestige_ < amount)
+        {
+            return false;
+        }
+
+        prestige_ -= amount;
+        return true;
+    }
+
+    ProvinceResourceSummary resourceSummary() const;
+    ProvinceFoodSummary foodSummary() const;
 
     const std::vector<Pop>& pops() const;
 
-    bool canBuildRoot(BuildingType type, std::string& reason) const;
-    bool buildRoot(BuildingType type, std::string& reason);
+    ProvinceSaveData saveData() const;
+    void loadData(const ProvinceSaveData& data);
 
-    bool canBuildSmallholderAttachment(int parentId, std::string& reason) const;
-    bool buildSmallholderAttachment(int parentId, std::string& reason);
+    bool assignWorkersToBuilding(
+        int holdingId,
+        int buildingId,
+        int workerCount,
+        std::string& reason
+    );
 
-    bool canBuildEstateAttachment(int parentId, std::string& reason) const;
-    bool buildEstateAttachment(int parentId, std::string& reason);
+    int raisedLevyCountForBuilding(
+        int holdingId,
+        int buildingId
+    ) const;
 
-    bool canBuildSubBuilding(int parentId, SubBuildingType type, std::string& reason) const;
-    bool buildSubBuilding(int parentId, SubBuildingType type, std::string& reason);
+    int availableLevyCountForBuilding(
+        int holdingId,
+        int buildingId
+    ) const;
 
-    const std::vector<Building>& buildings() const;
-    const Building* getBuildingById(int id) const;
-    Building* getBuildingById(int id);
+    bool raiseLevyFromBuilding(
+        int holdingId,
+        int buildingId,
+        int levySlotIndex,
+        std::string& reason
+    );
 
-    std::vector<int> rootBuildingIds() const;
+    bool lowerLevyFromBuilding(
+        int holdingId,
+        int buildingId,
+        int levySlotIndex,
+        std::string& reason
+    );
+
+    bool canBuildRootHolding(
+        HoldingType type,
+        std::string& reason
+    ) const;
+
+    bool buildRootHolding(
+        HoldingType type,
+        std::string& reason
+    );
+
+    bool canBuildSmallholderAttachment(
+        int parentId,
+        std::string& reason
+    ) const;
+
+    bool buildSmallholderAttachment(
+        int parentId,
+        std::string& reason
+    );
+
+    bool canBuildEstateAttachment(
+        int parentId,
+        std::string& reason
+    ) const;
+
+    bool buildEstateAttachment(
+        int parentId,
+        std::string& reason
+    );
+
+    bool canBuildBuilding(
+        int parentId,
+        BuildingType type,
+        std::string& reason
+    ) const;
+
+    bool buildBuilding(
+        int parentId,
+        BuildingType type,
+        std::string& reason
+    );
+
+    const std::vector<Holding>& holdings() const;
+
+    const Holding* getHoldingById(int id) const;
+    Holding* getHoldingById(int id);
+
+    std::vector<int> rootHoldingIds() const;
     std::vector<int> directSmallholderIdsForParent(int parentId) const;
     std::vector<int> estateIdsForParent(int parentId) const;
 
-    int directSmallholderSlotCapacityForBuilding(int buildingId) const;
-    int estateSlotCapacityForBuilding(int buildingId) const;
-    int subBuildingSlotCapacityForBuilding(int buildingId) const;
+    int directSmallholderSlotCapacityForHolding(int holdingId) const;
+    int estateSlotCapacityForHolding(int holdingId) const;
+    int buildingSlotCapacityForHolding(int holdingId) const;
 
     AttachmentCounts attachmentCountsForParent(int parentId) const;
 
 private:
-    int nextBuildingId_;
+    int nextHoldingId_;
     int nextPopId_;
-    int nextSubBuildingId_;
-    std::vector<Pop> pops_;
-    std::vector<Building> buildings_;
+    int nextBuildingId_;
+    int prestige_ = 10000;
 
-    bool hasCapitalType(BuildingType type) const;
-    int buildAttached(BuildingType type, int parentId);
+    std::vector<Pop> pops_;
+    std::vector<Holding> holdings_;
+
+    bool hasCapitalType(HoldingType type) const;
+    int buildAttachedHolding(HoldingType type, int parentId);
 };

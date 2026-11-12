@@ -1,19 +1,28 @@
-// File: province_build_attach.cpp
-// Commit: Update attachment construction to use typed estate and smallholder rules while keeping attachments optional relationships
+// File: building/province_build_attach.cpp
+// Commit: Migrate estate and smallholder attachment construction from buildings to holdings
 
 #include "province.h"
 
-int Province::buildAttached(BuildingType type, int parentId)
+namespace
 {
-    const int newId = nextBuildingId_++;
+    constexpr int kAttachmentHoldingPrestigeCost = 10;
+}
 
-    Building child;
+int Province::buildAttachedHolding(
+    HoldingType type,
+    int parentId
+)
+{
+    const int newId = nextHoldingId_++;
+
+    Holding child;
     child.id = newId;
     child.type = type;
     child.parentId = parentId;
-    buildings_.push_back(child);
+    holdings_.push_back(child);
 
-    Building* parent = getBuildingById(parentId);
+    Holding* parent = getHoldingById(parentId);
+
     if (parent)
     {
         parent->childIds.push_back(newId);
@@ -26,7 +35,8 @@ AttachmentCounts Province::attachmentCountsForParent(int parentId) const
 {
     AttachmentCounts counts;
 
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent = getHoldingById(parentId);
+
     if (!parent)
     {
         return counts;
@@ -34,17 +44,18 @@ AttachmentCounts Province::attachmentCountsForParent(int parentId) const
 
     for (int childId : parent->childIds)
     {
-        const Building* child = getBuildingById(childId);
+        const Holding* child = getHoldingById(childId);
+
         if (!child)
         {
             continue;
         }
 
-        if (isSmallholderBuildingType(child->type))
+        if (isSmallholderHoldingType(child->type))
         {
             ++counts.directSmallholders;
         }
-        else if (isEstateBuildingType(child->type))
+        else if (isEstateHoldingType(child->type))
         {
             ++counts.estates;
         }
@@ -53,128 +64,252 @@ AttachmentCounts Province::attachmentCountsForParent(int parentId) const
     return counts;
 }
 
-bool Province::canBuildSmallholderAttachment(int parentId, std::string& reason) const
+bool Province::canBuildSmallholderAttachment(
+    int parentId,
+    std::string& reason
+) const
 {
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent = getHoldingById(parentId);
+
     if (!parent)
     {
         reason = "No valid parent selected.";
         return false;
     }
 
-    const std::vector<BuildingType> allowedTypes = allowedSmallholderTypesForParent(parent->type);
+    const std::vector<HoldingType> allowedTypes =
+        allowedSmallholderTypesForParent(parent->type);
+
     if (allowedTypes.empty())
     {
-        reason = std::string(buildingTypeName(parent->type)) + " cannot host smallholders.";
+        reason =
+            std::string(holdingTypeName(parent->type)) +
+            " cannot host smallholders.";
+
         return false;
     }
 
-    const AttachmentCounts counts = attachmentCountsForParent(parentId);
-    const int capacity = directAttachmentSlotCapacity(parent->type);
+    const AttachmentCounts counts =
+        attachmentCountsForParent(parentId);
+
+    const int capacity =
+        directAttachmentSlotCapacity(parent->type);
 
     if (counts.directSmallholders + counts.estates >= capacity)
     {
-        reason = std::string(buildingDisplayName(*parent)) + " has no free attachment slots.";
+        reason =
+            holdingDisplayName(*parent) +
+            " has no free attachment slots.";
+
+        return false;
+    }
+
+    if (prestige() < kAttachmentHoldingPrestigeCost)
+    {
+        reason =
+            std::string("Not enough Prestige. Requires ") +
+            std::to_string(kAttachmentHoldingPrestigeCost) +
+            " Prestige.";
+
         return false;
     }
 
     reason =
         std::string("Attach ") +
-        buildingTypeName(allowedTypes.front()) +
+        holdingTypeName(allowedTypes.front()) +
         " to " +
-        buildingDisplayName(*parent) +
-        ".";
+        holdingDisplayName(*parent) +
+        ". Cost: " +
+        std::to_string(kAttachmentHoldingPrestigeCost) +
+        " Prestige.";
 
     return true;
 }
 
-bool Province::buildSmallholderAttachment(int parentId, std::string& reason)
+bool Province::buildSmallholderAttachment(
+    int parentId,
+    std::string& reason
+)
 {
     if (!canBuildSmallholderAttachment(parentId, reason))
     {
         return false;
     }
 
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent = getHoldingById(parentId);
+
     if (!parent)
     {
         reason = "No valid parent selected.";
         return false;
     }
 
-    const std::vector<BuildingType> allowedTypes = allowedSmallholderTypesForParent(parent->type);
+    const std::vector<HoldingType> allowedTypes =
+        allowedSmallholderTypesForParent(parent->type);
+
     if (allowedTypes.empty())
     {
-        reason = std::string(buildingTypeName(parent->type)) + " cannot host smallholders.";
+        reason =
+            std::string(holdingTypeName(parent->type)) +
+            " cannot host smallholders.";
+
         return false;
     }
 
-    const int newId = buildAttached(allowedTypes.front(), parentId);
-    const Building* building = getBuildingById(newId);
+    if (!spendPrestige(kAttachmentHoldingPrestigeCost))
+    {
+        reason =
+            std::string("Not enough Prestige. Requires ") +
+            std::to_string(kAttachmentHoldingPrestigeCost) +
+            " Prestige.";
 
-    reason = std::string("Built ") + (building ? buildingDisplayName(*building) : "Smallholder") + ".";
+        return false;
+    }
+
+    const int newId =
+        buildAttachedHolding(
+            allowedTypes.front(),
+            parentId
+        );
+
+    const Holding* holding =
+        getHoldingById(newId);
+
+    reason =
+        std::string("Built ") +
+        (
+            holding
+                ? holdingDisplayName(*holding)
+                : "Smallholder"
+        ) +
+        ". Spent " +
+        std::to_string(kAttachmentHoldingPrestigeCost) +
+        " Prestige.";
+
     return true;
 }
 
-bool Province::canBuildEstateAttachment(int parentId, std::string& reason) const
+bool Province::canBuildEstateAttachment(
+    int parentId,
+    std::string& reason
+) const
 {
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent = getHoldingById(parentId);
+
     if (!parent)
     {
         reason = "No valid parent selected.";
         return false;
     }
 
-    const std::vector<BuildingType> allowedTypes = allowedEstateTypesForParent(parent->type);
+    const std::vector<HoldingType> allowedTypes =
+        allowedEstateTypesForParent(parent->type);
+
     if (allowedTypes.empty())
     {
-        reason = std::string(buildingTypeName(parent->type)) + " cannot host estates.";
+        reason =
+            std::string(holdingTypeName(parent->type)) +
+            " cannot host estates.";
+
         return false;
     }
 
-    const AttachmentCounts counts = attachmentCountsForParent(parentId);
-    const int capacity = directAttachmentSlotCapacity(parent->type);
+    const AttachmentCounts counts =
+        attachmentCountsForParent(parentId);
+
+    const int capacity =
+        directAttachmentSlotCapacity(parent->type);
 
     if (counts.directSmallholders + counts.estates >= capacity)
     {
-        reason = std::string(buildingDisplayName(*parent)) + " has no free attachment slots.";
+        reason =
+            holdingDisplayName(*parent) +
+            " has no free attachment slots.";
+
+        return false;
+    }
+
+    if (prestige() < kAttachmentHoldingPrestigeCost)
+    {
+        reason =
+            std::string("Not enough Prestige. Requires ") +
+            std::to_string(kAttachmentHoldingPrestigeCost) +
+            " Prestige.";
+
         return false;
     }
 
     reason =
         std::string("Attach ") +
-        buildingTypeName(allowedTypes.front()) +
+        holdingTypeName(allowedTypes.front()) +
         " to " +
-        buildingDisplayName(*parent) +
-        ".";
+        holdingDisplayName(*parent) +
+        ". Cost: " +
+        std::to_string(kAttachmentHoldingPrestigeCost) +
+        " Prestige.";
 
     return true;
 }
 
-bool Province::buildEstateAttachment(int parentId, std::string& reason)
+bool Province::buildEstateAttachment(
+    int parentId,
+    std::string& reason
+)
 {
     if (!canBuildEstateAttachment(parentId, reason))
     {
         return false;
     }
 
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent = getHoldingById(parentId);
+
     if (!parent)
     {
         reason = "No valid parent selected.";
         return false;
     }
 
-    const std::vector<BuildingType> allowedTypes = allowedEstateTypesForParent(parent->type);
+    const std::vector<HoldingType> allowedTypes =
+        allowedEstateTypesForParent(parent->type);
+
     if (allowedTypes.empty())
     {
-        reason = std::string(buildingTypeName(parent->type)) + " cannot host estates.";
+        reason =
+            std::string(holdingTypeName(parent->type)) +
+            " cannot host estates.";
+
         return false;
     }
 
-    const int newId = buildAttached(allowedTypes.front(), parentId);
-    const Building* building = getBuildingById(newId);
+    if (!spendPrestige(kAttachmentHoldingPrestigeCost))
+    {
+        reason =
+            std::string("Not enough Prestige. Requires ") +
+            std::to_string(kAttachmentHoldingPrestigeCost) +
+            " Prestige.";
 
-    reason = std::string("Built ") + (building ? buildingDisplayName(*building) : "Estate") + ".";
+        return false;
+    }
+
+    const int newId =
+        buildAttachedHolding(
+            allowedTypes.front(),
+            parentId
+        );
+
+    const Holding* holding =
+        getHoldingById(newId);
+
+    reason =
+        std::string("Built ") +
+        (
+            holding
+                ? holdingDisplayName(*holding)
+                : "Estate"
+        ) +
+        ". Spent " +
+        std::to_string(kAttachmentHoldingPrestigeCost) +
+        " Prestige.";
+
     return true;
 }

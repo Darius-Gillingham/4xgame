@@ -1,35 +1,13 @@
 // File: game.h
-// Commit: Add player setup and county spawn declarations for the first playable county start
+// Commit: Add skeleton national market inventory to country state
 
 #pragma once
+
 #include "map.h"
-#include <cstdint>
+#include "building/province.h"
+
 #include <string>
 #include <vector>
-
-enum class Culture
-{
-    anglo_saxons,
-    franks,
-    frisians,
-    norse,
-    wends,
-    saxons,
-    goths,
-    lombards,
-    bulgars,
-    magyars,
-    byzantines,
-    rus,
-    poles
-};
-
-enum class Religion
-{
-    catholic,
-    orthodox,
-    pagan
-};
 
 enum class Government
 {
@@ -51,9 +29,7 @@ enum class RulerTrait
 
 struct PlayerSetup
 {
-    Culture culture = Culture::anglo_saxons;
     Region startRegion = Region::british_isles;
-    Religion religion = Religion::catholic;
     Government government = Government::tribal;
     std::string rulerName = "Ruler";
     int rulerAge = 30;
@@ -63,20 +39,133 @@ struct PlayerSetup
 
 struct PlayerCounty
 {
-    std::int32_t polityId = 0;
+    int countryId = 0;
     int countyX = -1;
     int countyY = -1;
+    int provinceId = -1;
     PlayerSetup setup;
 };
 
-const char* cultureName(Culture culture);
-const char* religionName(Religion religion);
+struct GameDate
+{
+    int year = 1;
+    int month = 1;
+};
+
+struct Discovery
+{
+    ResourceType resource = ResourceType::wild_game;
+    bool discovered = false;
+    int progress = 0;
+    int requiredProgress = 1000;
+};
+
+struct NationalMarket
+{
+    std::vector<ResourceAmount> goods;
+};
+
+struct Country
+{
+    int id = -1;
+    int capitalProvinceId = -1;
+    int prestige = 10000;
+    int piety = 10000;
+    std::vector<int> provinceIds;
+    std::vector<Discovery> discoveries;
+    NationalMarket market;
+};
+
+struct ProvinceSlot
+{
+    int provinceId = -1;
+    int countryId = -1;
+    Province province;
+};
+
+struct Unit
+{
+    int id = -1;
+    int countryId = -1;
+
+    int sourceProvinceId = -1;
+    int sourceHoldingId = -1;
+    int sourceBuildingId = -1;
+    int sourceLevySlotIndex = -1;
+
+    MapPosition position;
+    MapPosition destination;
+
+    bool moving = false;
+    int strength = 1;
+};
+
+struct GameState
+{
+    PlayerCounty playerCounty;
+    std::vector<ProvinceSlot> provinceSlots;
+    std::vector<Country> countries;
+    std::vector<Unit> units;
+    int nextUnitId = 1;
+    int tickCount = 0;
+    GameDate date;
+};
+
 const char* governmentName(Government government);
 const char* rulerTraitName(RulerTrait trait);
 const char* regionName(Region region);
+const char* monthName(int month);
 
-const std::vector<Region>& allowedStartingRegions(Culture culture);
-bool isAllowedStartingRegion(Culture culture, Region region);
-Region defaultStartingRegion(Culture culture);
+ProvinceSlot* provinceSlotById(
+    GameState& gameState,
+    int provinceId
+);
 
-bool spawnPlayerCounty(Map& map, PlayerCounty& playerCounty);
+const ProvinceSlot* provinceSlotById(
+    const GameState& gameState,
+    int provinceId
+);
+
+Province* provinceById(
+    GameState& gameState,
+    int provinceId
+);
+
+const Province* provinceById(
+    const GameState& gameState,
+    int provinceId
+);
+
+Country* countryById(
+    GameState& gameState,
+    int countryId
+);
+
+const Country* countryById(
+    const GameState& gameState,
+    int countryId
+);
+
+bool spawnPlayerCounty(
+    Map& map,
+    PlayerCounty& playerCounty
+);
+
+bool initializeGameState(
+    Map& map,
+    const PlayerSetup& setup,
+    GameState& gameState
+);
+
+void synchronizeRaisedLevyUnits(
+    const Map& map,
+    GameState& gameState
+);
+
+void advanceGameMonth(
+    GameState& gameState
+);
+
+void tickGame(
+    GameState& gameState
+);   

@@ -1,49 +1,89 @@
-// File: province_screen_types.h
-// Commit: Add sub-building slot drawer context to province screen state
+// File: building/province_screen_types.h
+// Commit: Add the Army tab to the live province overlay state
 
 #pragma once
 
 #include "building.h"
+
 #include <SDL2/SDL.h>
+
 #include <string>
 
 enum class BuildContextType
 {
     none,
-    root_capital,
+    root_holding,
     direct_attachment_slot,
     estate_attachment_slot,
-    sub_building_slot,
-    normal_building_section
+    building_slot,
+    building_detail,
+    normal_holding_section
 };
 
-struct BuildDrawerState
+enum class ProvinceOverlayTab
 {
-    BuildContextType contextType = BuildContextType::none;
-    int targetBuildingId = -1;
-    int scrollOffset = 0;
-    std::string title = "Building Choice";
-    std::string subtitle = "Select a + widget to choose what to build.";
+    holdings,
+    population,
+    army
 };
 
-struct BuildOption
+enum class MapViewMode
 {
-    std::string label;
-    std::string description;
-    bool enabled = false;
-    BuildingType buildingType = BuildingType::castle;
-    SubBuildingType subBuildingType = SubBuildingType::game_hunters;
+    terrain,
+    regions,
+    provinces
+};
+
+enum class EscapeMenuAction
+{
+    none,
+    close_menu,
+    save_game,
+    load_game,
+    exit_game
 };
 
 struct ClickTarget
 {
     SDL_Rect rect{};
-    BuildContextType contextType = BuildContextType::none;
+
+    BuildContextType contextType =
+        BuildContextType::none;
+
+    int targetHoldingId = -1;
     int targetBuildingId = -1;
 };
 
-struct SectionLayout
+struct ProvinceOverlayState
 {
-    SDL_Rect rect{};
-    int contentHeight = 0;
+    bool open = false;
+
+    ProvinceOverlayTab activeTab =
+        ProvinceOverlayTab::holdings;
+
+    int scrollOffset = 0;
+
+    int selectedHoldingId = -1;
+    int selectedBuildingId = -1;
+
+    bool showingHoldingDetails = false;
+
+    SDL_Rect selectedHoldingRect{};
+    SDL_Rect selectedBuildingRect{};
+};
+
+struct MapShellState
+{
+    bool escapeMenuOpen = false;
+
+    MapViewMode activeMapMode =
+        MapViewMode::terrain;
+
+    int gameSpeed = 1;
+
+    int monthProgress = 0;
+    int monthProgressTarget = 100;
+
+    std::string statusText =
+        "Months advance automatically.";
 };

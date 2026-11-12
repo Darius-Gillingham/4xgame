@@ -1,0 +1,100 @@
+// File: map_region_plan_oceania.cpp
+// Commit: Add Oceania region plan data for expanded world region generation
+
+#include "map_region_plan.h"
+
+const std::vector<RegionPlan>& oceaniaRegionPlans()
+{
+    static const std::vector<RegionPlan> plans{
+        {
+            Region::australia,
+            false,
+            151,
+            132,
+            13,
+            13,
+            10,
+            2,
+            2,
+            {
+                Region::indonesia,
+                Region::new_guinea,
+                Region::new_zealand,
+                Region::pacific_islands,
+                Region::none,
+                Region::none,
+                Region::none,
+                Region::none
+            },
+            4
+        },
+        {
+            Region::new_guinea,
+            false,
+            157,
+            113,
+            5,
+            8,
+            5,
+            2,
+            1,
+            {
+                Region::indonesia,
+                Region::philippines,
+                Region::australia,
+                Region::pacific_islands,
+                Region::none,
+                Region::none,
+                Region::none,
+                Region::none
+            },
+            4
+        },
+        {
+            Region::new_zealand,
+            false,
+            169,
+            150,
+            3,
+            4,
+            8,
+            2,
+            2,
+            {
+                Region::australia,
+                Region::pacific_islands,
+                Region::patagonia,
+                Region::none,
+                Region::none,
+                Region::none,
+                Region::none,
+                Region::none
+            },
+            3
+        },
+        {
+            Region::pacific_islands,
+            false,
+            172,
+            121,
+            6,
+            16,
+            8,
+            4,
+            1,
+            {
+                Region::philippines,
+                Region::indonesia,
+                Region::new_guinea,
+                Region::australia,
+                Region::new_zealand,
+                Region::california,
+                Region::central_america,
+                Region::patagonia
+            },
+            8
+        }
+    };
+
+    return plans;
+}

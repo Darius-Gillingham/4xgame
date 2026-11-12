@@ -1,40 +1,63 @@
-// File: province_build_root.cpp
-// Commit: Remove root type uniqueness restriction so provinces can have unlimited root buildings of every type
+// File: building/province_build_root.cpp
+// Commit: Remove province-level Prestige spending from root holding construction
 
 #include "province.h"
 
-bool Province::hasCapitalType(BuildingType type) const
+bool Province::hasCapitalType(HoldingType type) const
 {
     (void)type;
     return false;
 }
 
-bool Province::canBuildRoot(BuildingType type, std::string& reason) const
+bool Province::canBuildRootHolding(
+    HoldingType type,
+    std::string& reason
+) const
 {
     if (!canBuildAsRoot(type))
     {
-        reason = std::string(buildingTypeName(type)) + " cannot be built as a root building.";
+        reason =
+            std::string(holdingTypeName(type)) +
+            " cannot be built as a root holding.";
+
         return false;
     }
 
-    reason = std::string("Build ") + buildingTypeName(type) + " as a standalone root building.";
+    reason =
+        std::string("Build ") +
+        holdingTypeName(type) +
+        " as a standalone root holding.";
+
     return true;
 }
 
-bool Province::buildRoot(BuildingType type, std::string& reason)
+bool Province::buildRootHolding(
+    HoldingType type,
+    std::string& reason
+)
 {
-    if (!canBuildRoot(type, reason))
+    if (!canBuildRootHolding(type, reason))
     {
         return false;
     }
 
-    Building building;
-    building.id = nextBuildingId_++;
-    building.type = type;
-    building.parentId = -1;
-    buildings_.push_back(building);
+    Holding holding;
+    holding.id = nextHoldingId_++;
+    holding.type = type;
+    holding.parentId = -1;
+    holdings_.push_back(holding);
 
-    const Building* built = getBuildingById(building.id);
-    reason = std::string("Built ") + (built ? buildingDisplayName(*built) : std::string(buildingTypeName(type))) + ".";
+    const Holding* built =
+        getHoldingById(holding.id);
+
+    reason =
+        std::string("Built ") +
+        (
+            built
+                ? holdingDisplayName(*built)
+                : std::string(holdingTypeName(type))
+        ) +
+        ".";
+
     return true;
 }

@@ -1,51 +1,21 @@
 // File: map_region_balance.cpp
-// Commit: Add modular region ownership balancing with minimum and maximum tile targets before land carving
+// Commit: Update region ownership balancing to use shared world region plan helpers
 
 #include "map_internal.h"
-#include <array>
+#include "map_region_plan.h"
+
 #include <limits>
 #include <vector>
 
 namespace
 {
-    constexpr std::array<Region, 15> kBalancedRegions = {
-        Region::scandinavia,
-        Region::france,
-        Region::british_isles,
-        Region::italy,
-        Region::south_germany,
-        Region::lowlands,
-        Region::north_germany,
-        Region::poland,
-        Region::baltic,
-        Region::russia,
-        Region::pontic_steppe,
-        Region::danubia,
-        Region::balkans,
-        Region::iberia,
-        Region::anatolia
-    };
-
-    int regionIndex(Region region)
-    {
-        for (size_t i = 0; i < kBalancedRegions.size(); ++i)
-        {
-            if (kBalancedRegions[i] == region)
-            {
-                return static_cast<int>(i);
-            }
-        }
-
-        return -1;
-    }
-
     std::vector<int> countRegionTiles(const MapState& state)
     {
-        std::vector<int> counts(kBalancedRegions.size(), 0);
+        std::vector<int> counts(regionPlanCount(), 0);
 
         for (Region region : state.owner)
         {
-            const int idx = regionIndex(region);
+            const int idx = regionPlanIndex(region);
             if (idx >= 0)
             {
                 ++counts[static_cast<size_t>(idx)];
@@ -85,7 +55,7 @@ namespace
     {
         const RegionSeed* targetSeed = nullptr;
 
-        for (const auto& seed : seeds)
+        for (const RegionSeed& seed : seeds)
         {
             if (seed.region == target)
             {
@@ -114,7 +84,13 @@ namespace
                     continue;
                 }
 
+                if (current != Region::none && !regionsAreAdjacentInRules(target, current))
+                {
+                    continue;
+                }
+
                 const int score = seedDistanceScore(x, y, *targetSeed);
+
                 if (score < bestScore)
                 {
                     bestScore = score;
@@ -136,7 +112,7 @@ namespace
     {
         const RegionSeed* targetSeed = nullptr;
 
-        for (const auto& seed : seeds)
+        for (const RegionSeed& seed : seeds)
         {
             if (seed.region == target)
             {
@@ -159,19 +135,11 @@ namespace
             for (int x = 0; x < width; ++x)
             {
                 const int idx = y * width + x;
+
                 if (state.owner[static_cast<size_t>(idx)] != target)
                 {
                     continue;
                 }
-
-                const int targetScore = seedDistanceScore(x, y, *targetSeed);
-                if (targetScore < 36)
-                {
-                    continue;
-                }
-
-                Region bestNeighborRegion = Region::none;
-                int bestNeighborScore = std::numeric_limits<int>::max();
 
                 for (const auto& d : kDirs)
                 {
@@ -184,39 +152,33 @@ namespace
                     }
 
                     const Region neighbor = state.owner[static_cast<size_t>(ny * width + nx)];
-                    if (neighbor == target || neighbor == Region::none)
+
+                    if (neighbor == Region::none || neighbor == target)
                     {
                         continue;
                     }
 
-                    for (const auto& seed : seeds)
+                    if (!regionsAreAdjacentInRules(target, neighbor))
                     {
-                        if (seed.region != neighbor)
-                        {
-                            continue;
-                        }
-
-                        const int neighborScore = seedDistanceScore(x, y, seed);
-                        if (neighborScore < bestNeighborScore)
-                        {
-                            bestNeighborScore = neighborScore;
-                            bestNeighborRegion = neighbor;
-                        }
-
-                        break;
+                        continue;
                     }
-                }
 
-                if (bestNeighborRegion == Region::none)
-                {
-                    continue;
-                }
+                    const int neighborPlanIndex = regionPlanIndex(neighbor);
 
-                if (bestNeighborScore < bestReplacementScore)
-                {
-                    bestReplacementScore = bestNeighborScore;
-                    bestIndex = idx;
-                    replacement = bestNeighborRegion;
+                    if (neighborPlanIndex < 0 || neighborPlanIndex >= static_cast<int>(seeds.size()))
+                    {
+                        continue;
+                    }
+
+                    const RegionSeed& neighborSeed = seeds[static_cast<size_t>(neighborPlanIndex)];
+                    const int score = seedDistanceScore(x, y, neighborSeed);
+
+                    if (score < bestReplacementScore)
+                    {
+                        bestReplacementScore = score;
+                        bestIndex = idx;
+                        replacement = neighbor;
+                    }
                 }
             }
         }
@@ -231,51 +193,57 @@ namespace
     }
 }
 
-void balanceRegionOwnership(MapState& state, int width, int height)
+void balanceRegionOwnership(MapState& state, const Map& map)
 {
-    const int totalTiles = width * height;
-    const int regionCount = static_cast<int>(kBalancedRegions.size());
-    const int targetTilesPerRegion = totalTiles / regionCount;
-
-    const int minTilesPerRegion = std::max(24, (targetTilesPerRegion * 60) / 100);
-    const int maxTilesPerRegion = std::max(minTilesPerRegion + 8, (targetTilesPerRegion * 150) / 100);
-
-    for (int pass = 0; pass < 10; ++pass)
+    if (state.owner.empty() || state.seeds.empty())
     {
-        std::vector<int> regionCounts = countRegionTiles(state);
+        return;
+    }
+
+    for (int pass = 0; pass < 20; ++pass)
+    {
         bool changed = false;
+        std::vector<int> counts = countRegionTiles(state);
 
-        for (size_t i = 0; i < kBalancedRegions.size(); ++i)
+        for (const RegionPlan& plan : allRegionPlans())
         {
-            const Region region = kBalancedRegions[i];
+            const int idx = regionPlanIndex(plan.region);
 
-            while (regionCounts[i] < minTilesPerRegion)
+            if (idx < 0)
             {
-                if (!growOneTile(state, state.seeds, width, height, region))
+                continue;
+            }
+
+            while (counts[static_cast<size_t>(idx)] < minTileCount(map, plan.region))
+            {
+                if (!growOneTile(state, state.seeds, map.width(), map.height(), plan.region))
                 {
                     break;
                 }
 
-                ++regionCounts[i];
+                counts = countRegionTiles(state);
                 changed = true;
-                regionCounts = countRegionTiles(state);
             }
         }
 
-        for (size_t i = 0; i < kBalancedRegions.size(); ++i)
+        for (const RegionPlan& plan : allRegionPlans())
         {
-            const Region region = kBalancedRegions[i];
+            const int idx = regionPlanIndex(plan.region);
 
-            while (regionCounts[i] > maxTilesPerRegion)
+            if (idx < 0)
             {
-                if (!trimOneTile(state, state.seeds, width, height, region))
+                continue;
+            }
+
+            while (counts[static_cast<size_t>(idx)] > maxTileCount(map, plan.region))
+            {
+                if (!trimOneTile(state, state.seeds, map.width(), map.height(), plan.region))
                 {
                     break;
                 }
 
-                --regionCounts[i];
+                counts = countRegionTiles(state);
                 changed = true;
-                regionCounts = countRegionTiles(state);
             }
         }
 
@@ -284,4 +252,4 @@ void balanceRegionOwnership(MapState& state, int width, int height)
             break;
         }
     }
-}
+}      

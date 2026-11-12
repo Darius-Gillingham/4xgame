@@ -1,7 +1,9 @@
 // File: map_land.cpp
-// Commit: Remove fixed Europe silhouette and fake regional seas by deriving coastlines from edge-driven ocean growth and adjacency enforcement
+// Commit: Apply horizontal wraparound to land carving and coastline adjacency
 
 #include "map_internal.h"
+#include "map_region_plan.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -17,14 +19,31 @@ namespace
         int y;
     };
 
-    bool inBoundsRaw(int x, int y, int width, int height)
+    int wrapRawX(int x, int width)
     {
-        return x >= 0 && y >= 0 && x < width && y < height;
+        if (width <= 0)
+        {
+            return 0;
+        }
+
+        int wrapped = x % width;
+
+        if (wrapped < 0)
+        {
+            wrapped += width;
+        }
+
+        return wrapped;
+    }
+
+    bool validRawY(int y, int height)
+    {
+        return y >= 0 && y < height;
     }
 
     int indexRaw(int x, int y, int width)
     {
-        return y * width + x;
+        return y * width + wrapRawX(x, width);
     }
 
     std::uint32_t hash32(std::uint32_t value)
@@ -40,69 +59,10 @@ namespace
     int tileNoise(int x, int y, std::uint32_t seed)
     {
         std::uint32_t value = seed;
-        value ^= static_cast<std::uint32_t>(x * 73856093);
+        value ^= static_cast<std::uint32_t>(wrapRawX(x, 1000003) * 73856093);
         value ^= static_cast<std::uint32_t>(y * 19349663);
         value = hash32(value);
         return static_cast<int>(value % 101U) - 50;
-    }
-
-    bool regionsAreAdjacentInRules(Region a, Region b)
-    {
-        if (a == Region::none || b == Region::none || a == b)
-        {
-            return false;
-        }
-
-        switch (a)
-        {
-            case Region::british_isles:
-                return false;
-
-            case Region::iberia:
-                return b == Region::france;
-
-            case Region::france:
-                return b == Region::iberia || b == Region::italy || b == Region::south_germany || b == Region::lowlands;
-
-            case Region::lowlands:
-                return b == Region::france || b == Region::south_germany || b == Region::north_germany;
-
-            case Region::italy:
-                return b == Region::france || b == Region::south_germany;
-
-            case Region::south_germany:
-                return b == Region::france || b == Region::lowlands || b == Region::italy || b == Region::north_germany || b == Region::danubia;
-
-            case Region::north_germany:
-                return b == Region::lowlands || b == Region::south_germany || b == Region::scandinavia || b == Region::baltic || b == Region::poland;
-
-            case Region::scandinavia:
-                return b == Region::north_germany || b == Region::russia;
-
-            case Region::baltic:
-                return b == Region::north_germany || b == Region::russia || b == Region::poland;
-
-            case Region::danubia:
-                return b == Region::south_germany || b == Region::poland || b == Region::balkans || b == Region::pontic_steppe;
-
-            case Region::poland:
-                return b == Region::north_germany || b == Region::danubia || b == Region::baltic || b == Region::pontic_steppe || b == Region::russia;
-
-            case Region::russia:
-                return b == Region::baltic || b == Region::poland || b == Region::scandinavia || b == Region::pontic_steppe;
-
-            case Region::balkans:
-                return b == Region::danubia;
-
-            case Region::pontic_steppe:
-                return b == Region::danubia || b == Region::russia || b == Region::poland || b == Region::anatolia;
-
-            case Region::anatolia:
-                return b == Region::pontic_steppe;
-
-            default:
-                return false;
-        }
     }
 
     int coastalNeed(Region region)
@@ -124,8 +84,86 @@ namespace
             case Region::south_germany: return 24;
             case Region::danubia: return 20;
             case Region::poland: return 18;
+
+            case Region::levant: return 72;
+            case Region::mesopotamia: return 36;
+            case Region::arabia: return 82;
+            case Region::caucasus: return 38;
+            case Region::persia: return 36;
+            case Region::transoxiana: return 12;
+            case Region::kazakhstan_steppe: return 10;
+            case Region::tarim_basin: return 8;
+            case Region::mongolia: return 10;
+            case Region::northwest_india: return 42;
+            case Region::gangetic_plain: return 28;
+            case Region::deccan: return 78;
+            case Region::bengal: return 70;
+            case Region::sri_lanka: return 96;
+            case Region::north_china: return 42;
+            case Region::central_china: return 24;
+            case Region::south_china: return 78;
+            case Region::manchuria: return 58;
+            case Region::korea: return 88;
+            case Region::japan: return 96;
+            case Region::indochina: return 86;
+            case Region::mainland_southeast_asia: return 62;
+            case Region::malay_peninsula: return 94;
+            case Region::indonesia: return 98;
+            case Region::philippines: return 98;
+
+            case Region::egypt: return 62;
+            case Region::libya: return 38;
+            case Region::maghreb: return 72;
+            case Region::nubia: return 20;
+            case Region::horn_of_africa: return 86;
+            case Region::ethiopian_highlands: return 26;
+            case Region::swahili_coast: return 88;
+            case Region::sahel: return 12;
+            case Region::upper_niger: return 20;
+            case Region::guinea_coast: return 88;
+            case Region::congo_basin: return 32;
+            case Region::southern_africa: return 82;
+
+            case Region::arctic_america: return 92;
+            case Region::western_canada: return 48;
+            case Region::eastern_canada: return 72;
+            case Region::pacific_northwest: return 88;
+            case Region::great_plains: return 14;
+            case Region::great_lakes: return 36;
+            case Region::northeast_america: return 82;
+            case Region::california: return 82;
+            case Region::southwest_america: return 30;
+            case Region::southeast_america: return 84;
+            case Region::mexico: return 82;
+            case Region::central_america: return 94;
+            case Region::caribbean: return 98;
+            case Region::andes: return 86;
+            case Region::amazon: return 42;
+            case Region::brazil: return 88;
+            case Region::southern_cone: return 72;
+            case Region::patagonia: return 88;
+
+            case Region::australia: return 92;
+            case Region::new_guinea: return 96;
+            case Region::new_zealand: return 96;
+            case Region::pacific_islands: return 98;
+
             default: return 35;
         }
+    }
+
+    bool isIslandRegion(Region region)
+    {
+        return
+            region == Region::british_isles ||
+            region == Region::sri_lanka ||
+            region == Region::japan ||
+            region == Region::indonesia ||
+            region == Region::philippines ||
+            region == Region::caribbean ||
+            region == Region::new_guinea ||
+            region == Region::new_zealand ||
+            region == Region::pacific_islands;
     }
 
     int sameRegionNeighborCount(const MapState& state, int width, int height, int x, int y, Region region)
@@ -134,10 +172,10 @@ namespace
 
         for (const auto& d : kDirs)
         {
-            const int nx = x + d[0];
+            const int nx = wrapRawX(x + d[0], width);
             const int ny = y + d[1];
 
-            if (!inBoundsRaw(nx, ny, width, height))
+            if (!validRawY(ny, height))
             {
                 continue;
             }
@@ -151,13 +189,11 @@ namespace
         return count;
     }
 
-    int edgeDistance(int x, int y, int width, int height)
+    int edgeDistance(int y, int height)
     {
-        const int left = x;
-        const int right = width - 1 - x;
         const int top = y;
         const int bottom = height - 1 - y;
-        return std::min(std::min(left, right), std::min(top, bottom));
+        return std::min(top, bottom);
     }
 
     bool shouldFloodFromEdge(
@@ -171,14 +207,14 @@ namespace
     {
         const Region region = state.owner[static_cast<size_t>(indexRaw(x, y, width))];
         const int coastBias = coastalNeed(region);
-        const int edge = edgeDistance(x, y, width, height);
+        const int edge = edgeDistance(y, height);
         const int noise = tileNoise(x, y, seed);
 
         int threshold = baseDepth;
         threshold += coastBias / 12;
         threshold += noise / 18;
 
-        if (region == Region::british_isles)
+        if (isIslandRegion(region))
         {
             threshold += 3;
         }
@@ -208,22 +244,6 @@ namespace
             }
         }
 
-        for (int y = 0; y < height; ++y)
-        {
-            for (int x : {0, width - 1})
-            {
-                if (shouldFloodFromEdge(state, width, height, x, y, seed, baseDepth))
-                {
-                    const int idx = indexRaw(x, y, width);
-                    if (visited[static_cast<size_t>(idx)] == 0)
-                    {
-                        visited[static_cast<size_t>(idx)] = 1;
-                        queue.push(OceanNode{x, y});
-                    }
-                }
-            }
-        }
-
         while (!queue.empty())
         {
             const OceanNode current = queue.front();
@@ -232,7 +252,8 @@ namespace
             const int idx = indexRaw(current.x, current.y, width);
             const Region region = state.owner[static_cast<size_t>(idx)];
 
-            if (sameRegionNeighborCount(state, width, height, current.x, current.y, region) <= 1 && edgeDistance(current.x, current.y, width, height) > 0)
+            if (sameRegionNeighborCount(state, width, height, current.x, current.y, region) <= 1 &&
+                edgeDistance(current.y, height) > 0)
             {
                 continue;
             }
@@ -241,10 +262,10 @@ namespace
 
             for (const auto& d : kDirs)
             {
-                const int nx = current.x + d[0];
+                const int nx = wrapRawX(current.x + d[0], width);
                 const int ny = current.y + d[1];
 
-                if (!inBoundsRaw(nx, ny, width, height))
+                if (!validRawY(ny, height))
                 {
                     continue;
                 }
@@ -284,10 +305,10 @@ namespace
 
                 for (const auto& d : kDirs)
                 {
-                    const int nx = x + d[0];
+                    const int nx = wrapRawX(x + d[0], width);
                     const int ny = y + d[1];
 
-                    if (!inBoundsRaw(nx, ny, width, height))
+                    if (!validRawY(ny, height))
                     {
                         continue;
                     }
@@ -312,7 +333,7 @@ namespace
         mask.swap(next);
     }
 
-    void enforceBritishWater(std::vector<bool>& mask, const MapState& state, int width, int height)
+    void enforceIslandWater(std::vector<bool>& mask, const MapState& state, int width, int height)
     {
         std::vector<bool> next = mask;
 
@@ -323,17 +344,17 @@ namespace
                 const int idx = indexRaw(x, y, width);
                 const Region region = state.owner[static_cast<size_t>(idx)];
 
-                if (region != Region::british_isles || !mask[static_cast<size_t>(idx)])
+                if (!isIslandRegion(region) || !mask[static_cast<size_t>(idx)])
                 {
                     continue;
                 }
 
                 for (const auto& d : kDirs)
                 {
-                    const int nx = x + d[0];
+                    const int nx = wrapRawX(x + d[0], width);
                     const int ny = y + d[1];
 
-                    if (!inBoundsRaw(nx, ny, width, height))
+                    if (!validRawY(ny, height))
                     {
                         continue;
                     }
@@ -341,7 +362,7 @@ namespace
                     const int ni = indexRaw(nx, ny, width);
                     const Region neighbor = state.owner[static_cast<size_t>(ni)];
 
-                    if (neighbor != Region::none && neighbor != Region::british_isles)
+                    if (neighbor != Region::none && neighbor != region)
                     {
                         next[static_cast<size_t>(ni)] = false;
                     }
@@ -360,15 +381,21 @@ namespace
 
             for (int y = 1; y < height - 1; ++y)
             {
-                for (int x = 1; x < width - 1; ++x)
+                for (int x = 0; x < width; ++x)
                 {
                     const int idx = indexRaw(x, y, width);
                     int landNeighbors = 0;
 
                     for (const auto& d : kDiagDirs)
                     {
-                        const int nx = x + d[0];
+                        const int nx = wrapRawX(x + d[0], width);
                         const int ny = y + d[1];
+
+                        if (!validRawY(ny, height))
+                        {
+                            continue;
+                        }
+
                         if (mask[static_cast<size_t>(indexRaw(nx, ny, width))])
                         {
                             ++landNeighbors;
@@ -390,89 +417,82 @@ namespace
         }
     }
 
-    void keepLargestGlobalLandmassPlusBritain(std::vector<bool>& mask, const MapState& state, int width, int height)
+    void keepLandmasses(std::vector<bool>& mask, const MapState& state, int width, int height)
     {
         std::vector<int> visited(static_cast<size_t>(width * height), 0);
-        std::vector<int> bestComponent;
+        std::vector<bool> keep(static_cast<size_t>(width * height), false);
         std::queue<int> queue;
 
-        for (int y = 0; y < height; ++y)
+        for (const RegionPlan& plan : allRegionPlans())
         {
-            for (int x = 0; x < width; ++x)
+            std::vector<int> bestComponent;
+
+            for (int y = 0; y < height; ++y)
             {
-                const int start = indexRaw(x, y, width);
-                if (!mask[static_cast<size_t>(start)] || visited[static_cast<size_t>(start)] != 0)
+                for (int x = 0; x < width; ++x)
                 {
-                    continue;
-                }
+                    const int start = indexRaw(x, y, width);
 
-                const Region region = state.owner[static_cast<size_t>(start)];
-                if (region == Region::british_isles)
-                {
-                    continue;
-                }
-
-                std::vector<int> component;
-                visited[static_cast<size_t>(start)] = 1;
-                queue.push(start);
-
-                while (!queue.empty())
-                {
-                    const int idx = queue.front();
-                    queue.pop();
-                    component.push_back(idx);
-
-                    const int cx = idx % width;
-                    const int cy = idx / width;
-
-                    for (const auto& d : kDirs)
+                    if (!mask[static_cast<size_t>(start)] || visited[static_cast<size_t>(start)] != 0)
                     {
-                        const int nx = cx + d[0];
-                        const int ny = cy + d[1];
-                        if (!inBoundsRaw(nx, ny, width, height))
-                        {
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        const int ni = indexRaw(nx, ny, width);
-                        if (!mask[static_cast<size_t>(ni)] || visited[static_cast<size_t>(ni)] != 0)
-                        {
-                            continue;
-                        }
+                    if (state.owner[static_cast<size_t>(start)] != plan.region)
+                    {
+                        continue;
+                    }
 
-                        if (state.owner[static_cast<size_t>(ni)] == Region::british_isles)
-                        {
-                            continue;
-                        }
+                    std::vector<int> component;
+                    visited[static_cast<size_t>(start)] = 1;
+                    queue.push(start);
 
-                        visited[static_cast<size_t>(ni)] = 1;
-                        queue.push(ni);
+                    while (!queue.empty())
+                    {
+                        const int idx = queue.front();
+                        queue.pop();
+                        component.push_back(idx);
+
+                        const int cx = idx % width;
+                        const int cy = idx / width;
+
+                        for (const auto& d : kDirs)
+                        {
+                            const int nx = wrapRawX(cx + d[0], width);
+                            const int ny = cy + d[1];
+
+                            if (!validRawY(ny, height))
+                            {
+                                continue;
+                            }
+
+                            const int ni = indexRaw(nx, ny, width);
+
+                            if (!mask[static_cast<size_t>(ni)] || visited[static_cast<size_t>(ni)] != 0)
+                            {
+                                continue;
+                            }
+
+                            if (state.owner[static_cast<size_t>(ni)] != plan.region)
+                            {
+                                continue;
+                            }
+
+                            visited[static_cast<size_t>(ni)] = 1;
+                            queue.push(ni);
+                        }
+                    }
+
+                    if (component.size() > bestComponent.size())
+                    {
+                        bestComponent.swap(component);
                     }
                 }
-
-                if (component.size() > bestComponent.size())
-                {
-                    bestComponent.swap(component);
-                }
             }
-        }
 
-        std::vector<bool> keep(static_cast<size_t>(width * height), false);
-
-        for (int idx : bestComponent)
-        {
-            keep[static_cast<size_t>(idx)] = true;
-        }
-
-        for (int y = 0; y < height; ++y)
-        {
-            for (int x = 0; x < width; ++x)
+            for (int idx : bestComponent)
             {
-                const int idx = indexRaw(x, y, width);
-                if (mask[static_cast<size_t>(idx)] && state.owner[static_cast<size_t>(idx)] == Region::british_isles)
-                {
-                    keep[static_cast<size_t>(idx)] = true;
-                }
+                keep[static_cast<size_t>(idx)] = true;
             }
         }
 
@@ -500,7 +520,7 @@ BritainShape buildBritainShape(const Map& map, const MapState& state, std::mt199
     britain.channelX = britain.centerX + britain.radiusX + randInt(rng, 1, 3);
     britain.channelWidth = 1;
 
-    for (const auto& seed : state.seeds)
+    for (const RegionSeed& seed : state.seeds)
     {
         if (seed.region == Region::british_isles)
         {
@@ -546,9 +566,16 @@ void enforceBritishChannel(std::vector<bool>& mask, int width, int height, const
 void keepLargestMainland(std::vector<bool>& mask, int width, int height, const BritainShape& britain)
 {
     (void)britain;
+
     MapState dummyState;
     dummyState.owner.resize(static_cast<size_t>(width * height), Region::none);
-    keepLargestGlobalLandmassPlusBritain(mask, dummyState, width, height);
+
+    if (allRegionPlans().empty())
+    {
+        return;
+    }
+
+    keepLandmasses(mask, dummyState, width, height);
 }
 
 void applyLandmask(Map& map, MapState& state)
@@ -560,9 +587,9 @@ void applyLandmask(Map& map, MapState& state)
 
     floodOceanFromEdges(state.landMask, state, width, height, map.seed() + 97u);
     enforceIllegalBorderWater(state.landMask, state, width, height);
-    enforceBritishWater(state.landMask, state, width, height);
+    enforceIslandWater(state.landMask, state, width, height);
     softenCoastline(state.landMask, width, height, 1);
-    keepLargestGlobalLandmassPlusBritain(state.landMask, state, width, height);
+    keepLandmasses(state.landMask, state, width, height);
 
     for (int y = 0; y < height; ++y)
     {

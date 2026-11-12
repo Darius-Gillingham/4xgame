@@ -1,21 +1,111 @@
 // File: map.h
-// Commit: Add tile polity ownership and public region tile queries for county spawning
+// Commit: Add large Americas and Oceania regions to world region enum
 
 #pragma once
+
 #include <cstdint>
 #include <vector>
 
 enum class Terrain
 {
-    tundra, boreal, woods, highlands, hills, mountains,
-    plains, farmlands, marsh, steppe, arid, desert, ocean
+    tundra,
+    boreal,
+    woods,
+    jungle,
+    jungle_highlands,
+    highlands,
+    hills,
+    mountains,
+    meadow,
+    plains,
+    marsh,
+    floodplain,
+    steppe,
+    savanna,
+    arid,
+    desert,
+    oasis,
+    farmlands,
+    ocean
 };
 
 enum class Region
 {
-    none, scandinavia, france, british_isles, italy,
-    south_germany, lowlands, north_germany, poland, baltic,
-    russia, pontic_steppe, danubia, balkans, iberia, anatolia
+    none,
+    scandinavia,
+    france,
+    british_isles,
+    italy,
+    south_germany,
+    lowlands,
+    north_germany,
+    poland,
+    baltic,
+    russia,
+    pontic_steppe,
+    danubia,
+    balkans,
+    iberia,
+    anatolia,
+    levant,
+    mesopotamia,
+    arabia,
+    caucasus,
+    persia,
+    transoxiana,
+    kazakhstan_steppe,
+    tarim_basin,
+    mongolia,
+    northwest_india,
+    gangetic_plain,
+    deccan,
+    bengal,
+    sri_lanka,
+    north_china,
+    central_china,
+    south_china,
+    manchuria,
+    korea,
+    japan,
+    indochina,
+    mainland_southeast_asia,
+    malay_peninsula,
+    indonesia,
+    philippines,
+    egypt,
+    libya,
+    maghreb,
+    nubia,
+    horn_of_africa,
+    ethiopian_highlands,
+    swahili_coast,
+    sahel,
+    upper_niger,
+    guinea_coast,
+    congo_basin,
+    southern_africa,
+    arctic_america,
+    western_canada,
+    eastern_canada,
+    pacific_northwest,
+    great_plains,
+    great_lakes,
+    northeast_america,
+    california,
+    southwest_america,
+    southeast_america,
+    mexico,
+    central_america,
+    caribbean,
+    andes,
+    amazon,
+    brazil,
+    southern_cone,
+    patagonia,
+    australia,
+    new_guinea,
+    new_zealand,
+    pacific_islands
 };
 
 struct MapPosition
@@ -30,6 +120,7 @@ struct Tile
     Terrain terrain = Terrain::ocean;
     Region region = Region::none;
     int polityId = -1;
+    int provinceId = -1;
 };
 
 struct MapState;
@@ -44,6 +135,7 @@ public:
     int height() const;
     std::uint32_t seed() const;
     const Tile& at(int x, int y) const;
+    bool setTile(int x, int y, const Tile& value);
     std::vector<MapPosition> landTilesInRegion(Region region) const;
     void clearPolityOwnership();
     void setPolityOwner(int x, int y, int polityId);

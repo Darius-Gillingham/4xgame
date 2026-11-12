@@ -1,5 +1,5 @@
 // File: ui.h
-// Commit: Add building root color palette so all building trees can inherit colors from a central UI definition
+// Commit: Add sacred site root color to shared UI palette
 
 #pragma once
 
@@ -28,20 +28,19 @@ namespace UiPalette
     inline constexpr UiColor selectedFill{224, 212, 188, 255};
     inline constexpr UiColor drawerFill{234, 222, 198, 255};
 
-    // 🔵 BUILDING ROOT COLORS (NEW)
+    inline constexpr UiColor castleRoot{24, 48, 96, 255};
+    inline constexpr UiColor estateRoot{40, 90, 170, 255};
 
-    inline constexpr UiColor castleRoot{24, 48, 96, 255};            // dark blue
-    inline constexpr UiColor estateRoot{40, 90, 170, 255};           // blue
+    inline constexpr UiColor tribalRoot{110, 72, 32, 255};
+    inline constexpr UiColor sacredSiteRoot{132, 96, 48, 255};
 
-    inline constexpr UiColor tribalRoot{110, 72, 32, 255};           // brown
+    inline constexpr UiColor cityRoot{72, 128, 72, 255};
+    inline constexpr UiColor merchantEstateRoot{72, 128, 72, 255};
 
-    inline constexpr UiColor cityRoot{72, 128, 72, 255};             // green
-    inline constexpr UiColor merchantEstateRoot{72, 128, 72, 255};   // same as city
+    inline constexpr UiColor churchRoot{236, 236, 236, 255};
+    inline constexpr UiColor religiousEstateRoot{196, 196, 196, 255};
 
-    inline constexpr UiColor churchRoot{236, 236, 236, 255};         // white
-    inline constexpr UiColor religiousEstateRoot{196, 196, 196, 255}; // light grey
-
-    inline constexpr UiColor smallholderRoot{190, 150, 102, 255};    // light brown
+    inline constexpr UiColor smallholderRoot{190, 150, 102, 255};
 }
 
 TTF_Font* loadFontOrNull(int size);

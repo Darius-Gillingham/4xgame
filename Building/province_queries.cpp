@@ -1,17 +1,17 @@
-// File: province_queries.cpp
-// Commit: Add sub-building slot capacity query helpers
+// File: building/province_queries.cpp
+// Commit: Migrate province holding queries and slot capacity helpers to holdings and buildings
 
 #include "province.h"
 
-std::vector<int> Province::rootBuildingIds() const
+std::vector<int> Province::rootHoldingIds() const
 {
     std::vector<int> ids;
 
-    for (const Building& building : buildings_)
+    for (const Holding& holding : holdings_)
     {
-        if (building.parentId < 0)
+        if (holding.parentId < 0)
         {
-            ids.push_back(building.id);
+            ids.push_back(holding.id);
         }
     }
 
@@ -22,7 +22,9 @@ std::vector<int> Province::directSmallholderIdsForParent(int parentId) const
 {
     std::vector<int> ids;
 
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent =
+        getHoldingById(parentId);
+
     if (!parent)
     {
         return ids;
@@ -30,8 +32,13 @@ std::vector<int> Province::directSmallholderIdsForParent(int parentId) const
 
     for (int childId : parent->childIds)
     {
-        const Building* child = getBuildingById(childId);
-        if (child && isSmallholderBuildingType(child->type))
+        const Holding* child =
+            getHoldingById(childId);
+
+        if (
+            child &&
+            isSmallholderHoldingType(child->type)
+        )
         {
             ids.push_back(childId);
         }
@@ -44,7 +51,9 @@ std::vector<int> Province::estateIdsForParent(int parentId) const
 {
     std::vector<int> ids;
 
-    const Building* parent = getBuildingById(parentId);
+    const Holding* parent =
+        getHoldingById(parentId);
+
     if (!parent)
     {
         return ids;
@@ -52,8 +61,13 @@ std::vector<int> Province::estateIdsForParent(int parentId) const
 
     for (int childId : parent->childIds)
     {
-        const Building* child = getBuildingById(childId);
-        if (child && isEstateBuildingType(child->type))
+        const Holding* child =
+            getHoldingById(childId);
+
+        if (
+            child &&
+            isEstateHoldingType(child->type)
+        )
         {
             ids.push_back(childId);
         }
@@ -62,35 +76,47 @@ std::vector<int> Province::estateIdsForParent(int parentId) const
     return ids;
 }
 
-int Province::directSmallholderSlotCapacityForBuilding(int buildingId) const
+int Province::directSmallholderSlotCapacityForHolding(int holdingId) const
 {
-    const Building* building = getBuildingById(buildingId);
-    if (!building)
+    const Holding* holding =
+        getHoldingById(holdingId);
+
+    if (!holding)
     {
         return 0;
     }
 
-    return directAttachmentSlotCapacity(building->type);
+    return directAttachmentSlotCapacity(
+        holding->type
+    );
 }
 
-int Province::estateSlotCapacityForBuilding(int buildingId) const
+int Province::estateSlotCapacityForHolding(int holdingId) const
 {
-    const Building* building = getBuildingById(buildingId);
-    if (!building)
+    const Holding* holding =
+        getHoldingById(holdingId);
+
+    if (!holding)
     {
         return 0;
     }
 
-    return directAttachmentSlotCapacity(building->type);
+    return directAttachmentSlotCapacity(
+        holding->type
+    );
 }
 
-int Province::subBuildingSlotCapacityForBuilding(int buildingId) const
+int Province::buildingSlotCapacityForHolding(int holdingId) const
 {
-    const Building* building = getBuildingById(buildingId);
-    if (!building)
+    const Holding* holding =
+        getHoldingById(holdingId);
+
+    if (!holding)
     {
         return 0;
     }
 
-    return subBuildingSlotCapacity(building->type);
+    return buildingSlotCapacity(
+        holding->type
+    );
 }

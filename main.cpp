@@ -1,10 +1,12 @@
 // File: main.cpp
-// Commit: Fix SDL entry point signature for shared window app flow
+// Commit: Load saved province data into player province slot instead of removed singleton
 
 #include "menu.h"
 #include "window.h"
 #include "map.h"
 #include "map_internal.h"
+#include "game.h"
+#include "save_game.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
@@ -14,6 +16,8 @@
 
 namespace
 {
+    constexpr const char* kDefaultSavePath = "save_game.txt";
+
     TTF_Font* loadFont(int size)
     {
         const std::array<const char*, 5> paths = {
@@ -68,7 +72,7 @@ namespace
         SDL_DestroyTexture(texture);
     }
 
-    void drawLoadingScreen(SDL_Renderer* renderer, TTF_Font* font)
+    void drawStatusScreen(SDL_Renderer* renderer, TTF_Font* font, const std::string& text)
     {
         int screenWidth = 0;
         int screenHeight = 0;
@@ -76,8 +80,90 @@ namespace
 
         SDL_SetRenderDrawColor(renderer, 239, 226, 198, 255);
         SDL_RenderClear(renderer);
-        drawCenteredText(renderer, font, "Generating Map...", screenWidth, screenHeight);
+        drawCenteredText(renderer, font, text, screenWidth, screenHeight);
         SDL_RenderPresent(renderer);
+    }
+
+    bool restoreMapFromSave(const SavedGameData& savedGameData, Map& map, std::string& reason)
+    {
+        if (savedGameData.mapWidth != map.width() || savedGameData.mapHeight != map.height())
+        {
+            reason = "Saved map dimensions do not match the destination map.";
+            return false;
+        }
+
+        const int expectedTileCount = savedGameData.mapWidth * savedGameData.mapHeight;
+        if (static_cast<int>(savedGameData.tiles.size()) != expectedTileCount)
+        {
+            reason = "Saved tile count does not match saved map dimensions.";
+            return false;
+        }
+
+        for (int y = 0; y < savedGameData.mapHeight; ++y)
+        {
+            for (int x = 0; x < savedGameData.mapWidth; ++x)
+            {
+                const int index = y * savedGameData.mapWidth + x;
+                const SavedTile& savedTile = savedGameData.tiles[static_cast<size_t>(index)];
+
+                Tile tile;
+                tile.land = savedTile.land;
+                tile.terrain = savedTile.terrain;
+                tile.region = savedTile.region;
+                tile.polityId = savedTile.polityId;
+                tile.provinceId = savedTile.provinceId;
+
+                if (!map.setTile(x, y, tile))
+                {
+                    reason = "Failed to restore tile into map.";
+                    return false;
+                }
+            }
+        }
+
+        reason = "Map restored from save.";
+        return true;
+    }
+
+    bool loadSavedSession(Map& map, GameState& gameState, std::string& reason)
+    {
+        SavedGameData savedGameData;
+        if (!loadGameFromFile(kDefaultSavePath, savedGameData, reason))
+        {
+            return false;
+        }
+
+        map = Map(savedGameData.mapWidth, savedGameData.mapHeight, savedGameData.mapSeed);
+
+        if (!restoreMapFromSave(savedGameData, map, reason))
+        {
+            return false;
+        }
+
+        gameState = GameState{};
+
+        if (!initializeGameState(map, savedGameData.playerCounty.setup, gameState))
+        {
+            reason = "Failed to restore province country state from saved map.";
+            return false;
+        }
+
+        gameState.playerCounty = savedGameData.playerCounty;
+        gameState.tickCount = savedGameData.tickCount;
+        gameState.date = savedGameData.date;
+
+        Province* province = provinceById(gameState, gameState.playerCounty.provinceId);
+
+        if (!province)
+        {
+            reason = "Player province state could not be restored.";
+            return false;
+        }
+
+        province->loadData(savedGameData.provinceData);
+
+        reason = "Loaded saved game.";
+        return true;
     }
 }
 
@@ -139,24 +225,55 @@ int main(int argc, char* argv[])
     {
         MenuSettings settings;
 
-        if (!runMenu(window, renderer, sharedFont, settings) || !settings.confirmed)
+        if (!runMenu(window, renderer, sharedFont, settings))
         {
             break;
         }
 
-        drawLoadingScreen(renderer, sharedFont);
-        SDL_Delay(50);
+        if (!settings.confirmed || settings.action == MenuAction::exit_game)
+        {
+            break;
+        }
 
-        Map map(settings.mapWidth, settings.mapHeight, settings.seed);
-        map.generate();
+        Map map(1, 1, 0);
+        GameState gameState;
+        std::string reason;
 
-        MapState state = buildRegionLayout(map, settings.seed);
-        applyLandmask(map, state);
-        assignTerrainClusters(map, settings.seed);
-        smoothTerrainPasses(map);
+        if (
+            settings.action == MenuAction::continue_game ||
+            settings.action == MenuAction::load_game
+        )
+        {
+            drawStatusScreen(renderer, sharedFont, "Loading Save.");
 
-        runWindow(window, renderer, sharedFont, map, state);
-        appRunning = false;
+            if (!loadSavedSession(map, gameState, reason))
+            {
+                std::cerr << reason << "\n";
+                SDL_Delay(900);
+                continue;
+            }
+        }
+        else if (settings.action == MenuAction::new_game)
+        {
+            drawStatusScreen(renderer, sharedFont, "Generating Map.");
+            SDL_Delay(50);
+
+            map = Map(settings.mapWidth, settings.mapHeight, settings.seed);
+            map.generate();
+
+            if (!initializeGameState(map, settings.playerSetup, gameState))
+            {
+                std::cerr << "Failed to spawn player county in selected starting region.\n";
+                break;
+            }
+        }
+        else
+        {
+            continue;
+        }
+
+        MapState state;
+        runWindow(window, renderer, sharedFont, map, state, gameState);
     }
 
     if (sharedFont)
